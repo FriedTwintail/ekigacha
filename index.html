@@ -4,22 +4,33 @@
     <meta charset="UTF-8">
     <title>駅ガチャ</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; }
-        #result { margin: 20px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; max-width: 400px; }
-        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; text-align: center; padding: 10px; line-height: 1.6; color: #333; margin: 0; }
+        #result { margin: 20px auto; padding: 20px; border: 1px solid #eee; border-radius: 12px; max-width: 90%; width: 400px; background-color: #f9f9f9; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { padding: 12px 24px; margin: 5px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; transition: background 0.2s; width: 100%; max-width: 300px; }
         button:hover { background-color: #0056b3; }
-        .controls { margin-top: 10px; }
+        .filter-section { margin: 20px auto; max-width: 95%; width: 800px; text-align: left; padding: 15px; border: 1px solid #ddd; border-radius: 12px; background: #fff; box-sizing: border-box; }
+        .ward-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 10px; padding: 10px; border-top: 1px solid #eee; }
+        h4 { margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 1em; }
+        label { cursor: pointer; font-size: 0.85em; display: flex; align-items: center; gap: 5px; }
+        input[type="checkbox"] { transform: scale(1.1); }
     </style>
 </head>
 <body>
     <h1>駅ガチャ</h1>
-    <div id="result">データ読み込み中...</div>
-    <div class="controls">
-        <label><input type="checkbox" id="filterVisited"> 行ったことのない駅のみ表示</label>
+    <div style="margin: 20px 0;">
+        <button onclick="drawStation()" style="padding: 20px 40px; font-size: 20px; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">駅ガチャを回す</button>
     </div>
-    <br>
-    <button onclick="drawStation()">駅ガチャを回す</button>
-
+    <div id="result">読み込み中...</div>
+    
+    <div class="filter-section">
+        <label><input type="checkbox" id="filterVisited"> 行ったことのない駅のみ表示</label>
+        <hr>
+        <h3>区・市町村を選んでください</h3>
+        <button onclick="toggleAll(true)">すべて選択</button>
+        <button onclick="toggleAll(false)">すべて解除</button>
+        <div class="ward-list" id="wardList"></div>
+    </div>
+    
     <script>
         let stations = [];
         let visitedStations = JSON.parse(localStorage.getItem('visitedStations') || '[]');
@@ -28,31 +39,58 @@
             .then(response => response.json())
             .then(data => {
                 stations = data;
-                document.getElementById('result').innerHTML = `現在 ${stations.length} 駅登録済み！<br>ボタンを押して出発！`;
-            })
-            .catch(err => {
-                document.getElementById('result').innerHTML = "エラー: stations.json が読み込めません。<br>ローカルサーバー(python -m http.server)を使って開いてください。";
+                renderFilters();
+                document.getElementById('result').innerHTML = `現在 ${stations.length} 駅登録済み！`;
             });
 
-        function toggleVisited(id) {
-            if (visitedStations.includes(id)) {
-                visitedStations = visitedStations.filter(v => v !== id);
-            } else {
-                visitedStations.push(id);
-            }
-            localStorage.setItem('visitedStations', JSON.stringify(visitedStations));
+        function toggleGroup(groupClass, checked) {
+            document.querySelectorAll(groupClass).forEach(cb => cb.checked = checked);
+        }
+
+        function renderFilters() {
+            const container = document.getElementById('wardList');
+            const wards = [...new Set(stations.map(s => s.ward))].sort();
+            
+            const tokyo23 = ["千代田区", "中央区", "港区", "新宿区", "文京区", "台東区", "墨田区", "江東区", "品川区", "目黒区", "大田区", "世田谷区", "渋谷区", "中野区", "杉並区", "豊島区", "北区", "荒川区", "板橋区", "練馬区", "足立区", "葛飾区", "江戸川区"];
+            
+            const wards23 = wards.filter(w => tokyo23.includes(w));
+            const others = wards.filter(w => !tokyo23.includes(w) && w !== "その他");
+            const hasOther = wards.includes("その他");
+
+            let html = `
+                <h4>東京23区 
+                    <button onclick="toggleGroup('.ward23-cb', true)">すべて選択</button>
+                    <button onclick="toggleGroup('.ward23-cb', false)">解除</button>
+                </h4>
+                <div class="ward-list">
+                    ${wards23.map(w => `<label><input type="checkbox" class="ward-cb ward23-cb" value="${w}" checked> ${w}</label>`).join('')}
+                </div>
+                <h4>市町村・その他 
+                    <button onclick="toggleGroup('.other-cb', true)">すべて選択</button>
+                    <button onclick="toggleGroup('.other-cb', false)">解除</button>
+                </h4>
+                <div class="ward-list">
+                    ${others.map(w => `<label><input type="checkbox" class="ward-cb other-cb" value="${w}"> ${w}</label>`).join('')}
+                    ${hasOther ? `<label><input type="checkbox" class="ward-cb other-cb" value="その他"> その他(未特定)</label>` : ''}
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        function toggleAll(checked) {
+            document.querySelectorAll('.ward-cb').forEach(cb => cb.checked = checked);
         }
 
         function drawStation() {
-            if (stations.length === 0) return;
             const filterVisited = document.getElementById('filterVisited').checked;
-            let available = stations;
-            if (filterVisited) {
-                available = stations.filter(s => !visitedStations.includes(s.id));
-            }
+            const selectedWards = Array.from(document.querySelectorAll('.ward-cb:checked')).map(cb => cb.value);
+            
+            let available = stations.filter(s => selectedWards.includes(s.ward));
+            if (filterVisited) available = available.filter(s => !visitedStations.includes(s.id));
 
             if (available.length === 0) {
-                document.getElementById('result').innerHTML = "すべての駅に行きました！";
+                document.getElementById('result').innerHTML = "条件に合う駅が見つかりません！";
                 return;
             }
 
@@ -62,13 +100,19 @@
             
             document.getElementById('result').innerHTML = `
                 <h2><a href="${mapUrl}" target="_blank">${s.name}駅</a></h2>
-                <p>区名: ${s.ward}</p>
+                <p>所在地: ${s.ward}</p>
                 <p>路線: ${s.lines.join(', ')}</p>
                 <label>
                     <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleVisited(${s.id})"> 
                     行ったことある
                 </label>
             `;
+        }
+        
+        function toggleVisited(id) {
+            if (visitedStations.includes(id)) visitedStations = visitedStations.filter(v => v !== id);
+            else visitedStations.push(id);
+            localStorage.setItem('visitedStations', JSON.stringify(visitedStations));
         }
     </script>
 </body>
