@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>駅ガチャ</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        #result { margin: 20px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; max-width: 400px; }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; }
+        button:hover { background-color: #0056b3; }
+        .controls { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>駅ガチャ</h1>
+    <div id="result">データ読み込み中...</div>
+    <div class="controls">
+        <label><input type="checkbox" id="filterVisited"> 行ったことのない駅のみ表示</label>
+    </div>
+    <br>
+    <button onclick="drawStation()">駅ガチャを回す</button>
+
+    <script>
+        let stations = [];
+        let visitedStations = JSON.parse(localStorage.getItem('visitedStations') || '[]');
+
+        fetch('stations.json')
+            .then(response => response.json())
+            .then(data => {
+                stations = data;
+                document.getElementById('result').innerHTML = `現在 ${stations.length} 駅登録済み！<br>ボタンを押して出発！`;
+            })
+            .catch(err => {
+                document.getElementById('result').innerHTML = "エラー: stations.json が読み込めません。<br>ローカルサーバー(python -m http.server)を使って開いてください。";
+            });
+
+        function toggleVisited(id) {
+            if (visitedStations.includes(id)) {
+                visitedStations = visitedStations.filter(v => v !== id);
+            } else {
+                visitedStations.push(id);
+            }
+            localStorage.setItem('visitedStations', JSON.stringify(visitedStations));
+        }
+
+        function drawStation() {
+            if (stations.length === 0) return;
+            const filterVisited = document.getElementById('filterVisited').checked;
+            let available = stations;
+            if (filterVisited) {
+                available = stations.filter(s => !visitedStations.includes(s.id));
+            }
+
+            if (available.length === 0) {
+                document.getElementById('result').innerHTML = "すべての駅に行きました！";
+                return;
+            }
+
+            const s = available[Math.floor(Math.random() * available.length)];
+            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.name + '駅')}`;
+            const isChecked = visitedStations.includes(s.id);
+            
+            document.getElementById('result').innerHTML = `
+                <h2><a href="${mapUrl}" target="_blank">${s.name}駅</a></h2>
+                <p>区名: ${s.ward}</p>
+                <p>路線: ${s.lines.join(', ')}</p>
+                <label>
+                    <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleVisited(${s.id})"> 
+                    行ったことある
+                </label>
+            `;
+        }
+    </script>
+</body>
+</html>
