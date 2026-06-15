@@ -49,13 +49,18 @@
 
         function renderFilters() {
             const container = document.getElementById('wardList');
-            const wards = [...new Set(stations.map(s => s.ward))].sort();
+            const wards = [...new Set(stations.map(s => s.ward))].filter(w => w !== "その他").sort();
             
-            const tokyo23 = ["千代田区", "中央区", "港区", "新宿区", "文京区", "台東区", "墨田区", "江東区", "品川区", "目黒区", "大田区", "世田谷区", "渋谷区", "中野区", "杉並区", "豊島区", "北区", "荒川区", "板橋区", "練馬区", "足立区", "葛飾区", "江戸川区"];
+            const tokyo23List = [
+                "千代田区", "中央区", "港区", "新宿区", "文京区", "台東区", "墨田区", "江東区", "品川区", "目黒区",
+                "大田区", "世田谷区", "渋谷区", "中野区", "杉並区", "豊島区", "北区", "荒川区", "板橋区", "練馬区",
+                "足立区", "葛飾区", "江戸川区"
+            ];
             
-            const wards23 = wards.filter(w => tokyo23.includes(w));
-            const others = wards.filter(w => !tokyo23.includes(w) && w !== "その他");
-            const hasOther = wards.includes("その他");
+            // 23区に分類されるものと、それ以外(その他含む)に分ける
+            const wards23 = wards.filter(w => tokyo23List.includes(w));
+            const others = wards.filter(w => !tokyo23List.includes(w));
+            const hasOther = [...new Set(stations.map(s => s.ward))].includes("その他");
 
             let html = `
                 <h4>東京23区 
